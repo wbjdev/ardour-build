@@ -1,0 +1,37 @@
+name: Build Ardour
+on: 
+  workflow_dispatch: # Allows you to start it manually
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential git python3 pkg-config libboost-all-dev libasound2-dev libglib2.0-dev glibmm-2.4-dev libsndfile1-dev libcurl4-gnutls-dev liblo-dev libtag1-dev vamp-plugin-sdk librubberband-dev libfftw3-dev libaubio-dev libxml2-dev libcwiid-dev libjack-jackd2-dev liblrdf0-dev libsamplerate0-dev lv2-dev libserd-dev libsord-dev libsratom-dev liblilv-dev libgtkmm-2.4-dev libarchive-dev libudev-dev libwebsockets-dev libusb-1.0-0-dev libsuil-dev
+
+      - name: Clone Ardour
+        run: git clone --depth 1 https://github.com/Ardour/ardour.git
+
+      - name: Configure with Waf
+        run: |
+          cd ardour
+          python3 waf configure --optimize --with-backends=alsa,dummy
+
+      - name: Build
+        run: |
+          cd ardour
+          python3 waf build -j$(nproc)
+
+      - name: Create Bundle
+        run: |
+          cd ardour/tools/linux_packaging
+          ./build --public --strip some
+          # This creates a .tar file in the tools/linux_packaging directory
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ardour-Binary
+          path: ardour/tools/linux_packaging/*.tar
