@@ -1,6 +1,6 @@
-name: Build Ardour
+name: Build Latest Ardour
 on: 
-  workflow_dispatch: # Allows you to start it manually
+  workflow_dispatch:
 
 jobs:
   build-linux:
@@ -9,29 +9,44 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential git python3 pkg-config libboost-all-dev libasound2-dev libglib2.0-dev glibmm-2.4-dev libsndfile1-dev libcurl4-gnutls-dev liblo-dev libtag1-dev vamp-plugin-sdk librubberband-dev libfftw3-dev libaubio-dev libxml2-dev libcwiid-dev libjack-jackd2-dev liblrdf0-dev libsamplerate0-dev lv2-dev libserd-dev libsord-dev libsratom-dev liblilv-dev libgtkmm-2.4-dev libarchive-dev libudev-dev libwebsockets-dev libusb-1.0-0-dev libsuil-dev
+          sudo apt-get install -y build-essential git python3 pkg-config \
+          libboost-all-dev libasound2-dev libglib2.0-dev glibmm-2.4-dev \
+          libsndfile1-dev libcurl4-gnutls-dev liblo-dev libtag1-dev \
+          vamp-plugin-sdk librubberband-dev libfftw3-dev libaubio-dev \
+          libxml2-dev libcwiid-dev libjack-jackd2-dev liblrdf0-dev \
+          libsamplerate0-dev lv2-dev libserd-dev libsord-dev \
+          libsratom-dev liblilv-dev libgtkmm-2.4-dev libarchive-dev \
+          libudev-dev libwebsockets-dev libusb-1.0-0-dev libsuil-dev
 
-      - name: Clone Ardour
-        run: git clone --depth 1 https://github.com/Ardour/ardour.git
+      - name: Clone Ardour (Full History for Versioning)
+        run: |
+          # Cloning with tags is required to avoid the 'ValueError'
+          git clone --filter=blob:none https://github.com/Ardour/ardour.git
+          cd ardour
+          git fetch --tags
+          git config --global --add safe.directory /home/runner/work/${{ github.event.repository.name }}/${{ github.event.repository.name }}/ardour
 
       - name: Configure with Waf
         run: |
           cd ardour
-          python3 waf configure --optimize --with-backends=alsa,dummy
+          # --optimize makes it run much faster on your machine
+          python3 waf configure --optimize --with-backends=alsa,dummy --ptformat
 
       - name: Build
         run: |
           cd ardour
+          # Using all available cores to speed up the 45-60 minute build
           python3 waf build -j$(nproc)
 
-      - name: Create Bundle
+      - name: Package the Build
         run: |
-          cd ardour/tools/linux_packaging
+          cd ardour
+          # This creates the self-contained installer bundle
+          cd tools/linux_packaging
           ./build --public --strip some
-          # This creates a .tar file in the tools/linux_packaging directory
 
-      - name: Upload Artifact
+      - name: Upload Binary
         uses: actions/upload-artifact@v4
         with:
-          name: Ardour-Binary
+          name: Ardour-Latest-Linux
           path: ardour/tools/linux_packaging/*.tar
