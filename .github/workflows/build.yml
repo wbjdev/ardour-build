@@ -21,22 +21,19 @@ jobs:
       - name: Clone Ardour (Full History for Versioning)
         run: |
           # Cloning with tags is required to avoid the 'ValueError'
-          git clone --filter=blob:none https://github.com/Ardour/ardour.git
-          cd ardour
-          git fetch --tags
-          git config --global --add safe.directory /home/runner/work/${{ github.event.repository.name }}/${{ github.event.repository.name }}/ardour
+          git clone https://github.com/Ardour/ardour.git
 
       - name: Configure with Waf
         run: |
           cd ardour
           # --optimize makes it run much faster on your machine
-          python3 waf configure --optimize --with-backends=alsa,dummy --ptformat
+          ./waf configure
 
       - name: Build
         run: |
           cd ardour
           # Using all available cores to speed up the 45-60 minute build
-          python3 waf build -j$(nproc)
+          ./waf build -j$(nproc)
 
       - name: Package the Build
         run: |
