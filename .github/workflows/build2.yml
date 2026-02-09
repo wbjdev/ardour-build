@@ -1,4 +1,4 @@
-name: Build Latest Ardour
+name: Build Latest Ardour (show version)
 on: 
   workflow_dispatch:
 
