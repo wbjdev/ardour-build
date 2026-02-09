@@ -1,0 +1,51 @@
+name: Build Latest Ardour
+on: 
+  workflow_dispatch:
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential git python3 pkg-config \
+          libboost-all-dev libasound2-dev libglib2.0-dev glibmm-2.4-dev \
+          libsndfile1-dev libcurl4-gnutls-dev liblo-dev libtag1-dev \
+          vamp-plugin-sdk librubberband-dev libfftw3-dev libaubio-dev \
+          libxml2-dev libcwiid-dev libjack-jackd2-dev liblrdf0-dev \
+          libsamplerate0-dev lv2-dev libserd-dev libsord-dev \
+          libsratom-dev liblilv-dev libgtkmm-2.4-dev libarchive-dev \
+          libudev-dev libwebsockets-dev libusb-1.0-0-dev libsuil-dev
+
+      - name: Clone Ardour
+        run: git clone --tags https://github.com/Ardour/ardour.git
+
+      - name: Configure and Get Version
+        id: get_version
+        run: |
+          cd ardour
+          ./waf configure
+          # Extract version from the generated version file or git describe
+          # This saves it to the GitHub environment for later steps
+          VER=$(git describe --tags | sed 's/-.*//')
+          echo "ARD_VER=$VER" >> $GITHUB_OUTPUT
+          echo "Building Ardour version: $VER"
+
+      - name: Build
+        run: |
+          cd ardour
+          ./waf build -j$(nproc)
+
+      - name: Package the Build
+        run: |
+          cd ardour
+          cd tools/linux_packaging
+          ./build --public --strip some
+
+      - name: Upload Binary
+        uses: actions/upload-artifact@v4
+        with:
+          # This uses the output from the 'get_version' step
+          name: Ardour-${{ steps.get_version.outputs.ARD_VER }}-Linux
+          path: ardour/tools/linux_packaging/*.tar
